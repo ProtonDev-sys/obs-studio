@@ -138,13 +138,12 @@ static void do_inhibit(struct portal_inhibit_info *info, const char *reason)
 
 static void uninhibited_cb(GObject *source_object, GAsyncResult *result, gpointer user_data)
 {
-	UNUSED_PARAMETER(source_object);
+	UNUSED_PARAMETER(user_data);
 
-	struct portal_inhibit_info *info = user_data;
 	g_autoptr(GVariant) reply = NULL;
 	g_autoptr(GError) error = NULL;
 
-	reply = g_dbus_connection_call_finish(info->c, result, &error);
+	reply = g_dbus_connection_call_finish(G_DBUS_CONNECTION(source_object), result, &error);
 
 	if (error)
 		blog(LOG_WARNING, "Error uninhibiting: %s", error->message);
@@ -161,7 +160,7 @@ static void do_uninhibit(struct portal_inhibit_info *info)
 	} else {
 		g_dbus_connection_call(info->c, PORTAL_NAME, info->request_path, "org.freedesktop.portal.Request",
 				       "Close", g_variant_new("()"), G_VARIANT_TYPE_UNIT, G_DBUS_CALL_FLAGS_NONE, -1,
-				       NULL, uninhibited_cb, info);
+				       NULL, uninhibited_cb, NULL);
 	}
 
 	remove_inhibit_data(info);
