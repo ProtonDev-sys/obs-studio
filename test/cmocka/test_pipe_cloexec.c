@@ -72,8 +72,8 @@ static bool test_pipe(bool read_pipe)
 {
 	unsigned before = inherited;
 	os_process_pipe_t *pp = os_process_pipe_create(read_pipe ? "printf output; printf diagnostic >&2; exit 7"
-							      : "IFS= read -r line && test \"$line\" = input",
-						     read_pipe ? "r" : "w");
+								 : "IFS= read -r line && test \"$line\" = input",
+						       read_pipe ? "r" : "w");
 	if (!pp)
 		return false;
 
