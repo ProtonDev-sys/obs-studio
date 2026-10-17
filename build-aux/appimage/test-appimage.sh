@@ -201,7 +201,7 @@ case "${ID_LIKE:-} ${ID}" in
         >/etc/apt/apt.conf.d/99keep
     apt-get update -qq
     apt-get install -y -qq --no-install-recommends \
-        ca-certificates xvfb icewm x11-utils imagemagick fonts-dejavu-core gdb procps dbus diffutils \
+        ca-certificates openssl xvfb icewm x11-utils imagemagick fonts-dejavu-core gdb procps dbus diffutils \
         libgl1-mesa-dri libglx-mesa0 libegl-mesa0 libgl1 libegl1 libgbm1 libdrm2 libva2 libva-drm2 libva-x11-2 libopengl0 \
         libwayland-client0 libwayland-egl1 libvulkan1 >/dev/null
     # HOSTILE_QT=1: a host that has its own, different Qt plugins - the usual desktop - which
@@ -222,7 +222,7 @@ case "${ID_LIKE:-} ${ID}" in
             dnf config-manager --set-enabled crb >/dev/null 2>&1 || true
     fi
     dnf install -y -q --setopt=install_weak_deps=False --setopt=keepcache=1 \
-        xorg-x11-server-Xvfb icewm xwininfo xprop ImageMagick dbus-daemon diffutils \
+        openssl xorg-x11-server-Xvfb icewm xwininfo xprop ImageMagick dbus-daemon diffutils \
         dejavu-sans-fonts gdb procps-ng mesa-dri-drivers mesa-libGL mesa-libEGL mesa-libgbm libdrm libva \
         libglvnd-glx libglvnd-egl libglvnd-opengl libwayland-client libwayland-egl vulkan-loader >/dev/null
     ;;
@@ -232,7 +232,7 @@ case "${ID_LIKE:-} ${ID}" in
     # built with, and its Mesa (libgallium -> libLLVM) needs that newer glibc
     # and libstdc++ (obs-rust/obs-studio#621).
     pacman -Syu --noconfirm --needed \
-        xorg-server-xvfb icewm xorg-xwininfo xorg-xprop imagemagick ttf-dejavu gdb procps-ng dbus diffutils \
+        openssl xorg-server-xvfb icewm xorg-xwininfo xorg-xprop imagemagick ttf-dejavu gdb procps-ng dbus diffutils \
         mesa libglvnd libdrm libva wayland vulkan-icd-loader >/dev/null
     ;;
 *)
@@ -355,6 +355,16 @@ host_glibc_is_newer() {
 # The helper is built with RPATH $ORIGIN/../lib, so placed next to obs it finds
 # the bundled libraries exactly the way obs does (no --library-path).
 install -m755 "$TESTKIT" "$APPDIR/usr/bin/obs-appimage-testkit"
+
+# The same packaged launcher and curl initialization must trust a user-selected
+# CA without accepting an untrusted certificate or a mismatching hostname.
+# Include returning users' saved-profile scenarios in this packaging regression.
+case "$SCENARIO" in
+bundle | saved-profile | saved-profile-custom | saved-profile-existing)
+    "$HERE_DIR/test-apprun-curl.sh" "$APPDIR" "$(dirname "$TESTKIT")/obs-appimage-curl-test" "$OUT/tls" ||
+        fail "AppImage HTTPS certificate verification failed (see tls logs)"
+    ;;
+esac
 
 # The modules the build installed (assemble-appdir.sh records them).
 INVENTORY="$PACKAGE_DATA/appimage-modules.txt"

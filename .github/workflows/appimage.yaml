@@ -163,6 +163,9 @@ jobs:
             gcc -O2 -Wall -Wextra -Werror -fPIE -pie -o obs-appimage-testkit build-aux/appimage/testkit.c \
               $(pkg-config --cflags --libs gio-unix-2.0 libpipewire-0.3 libpulse) -lm \
               -Wl,--disable-new-dtags -Wl,-rpath,"\$ORIGIN/../lib"
+            gcc -O2 -Wall -Wextra -Werror -fPIE -pie -Ilibobs -o obs-appimage-curl-test build-aux/appimage/curl-test.c \
+              $(pkg-config --cflags --libs libcurl openssl) \
+              -Wl,--disable-new-dtags -Wl,-rpath,"\$ORIGIN/../lib"
             gcc -O2 -Wall -Wextra -Werror -fPIE -pie -o obs-appimage-gpu-test build-aux/appimage/gpu-test.c \
               $(pkg-config --cflags --libs gbm egl glesv2 libavcodec libavformat libavutil) \
               -Wl,--disable-new-dtags -Wl,-rpath,"\$ORIGIN/../lib"'
@@ -193,7 +196,9 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: obs-appimage-testkit
-          path: obs-appimage-testkit
+          path: |
+            obs-appimage-testkit
+            obs-appimage-curl-test
           if-no-files-found: error
 
   # The release gate: the AppImage built once above, run as shipped on each
