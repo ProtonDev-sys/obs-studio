@@ -90,8 +90,8 @@ static void libcamera_default_is_listed_once(void **state)
 {
 	struct format_fixture *fixture = *state;
 	/* PipeWire 1.0.5's spa_libcamera_enum_format() emits the preferred size
- 	 * first, then all supported sizes (including that size again). It does
- 	 * not advertise a framerate. This is the duplicate in #1068. */
+	 * first, then all supported sizes (including that size again). It does
+	 * not advertise a framerate. This is the duplicate in #1068. */
 	add_format(fixture, SPA_VIDEO_FORMAT_NV12, 640, 480, NULL, 0);
 	add_format(fixture, SPA_VIDEO_FORMAT_NV12, 320, 240, NULL, 0);
 	add_format(fixture, SPA_VIDEO_FORMAT_NV12, 640, 480, NULL, 0);

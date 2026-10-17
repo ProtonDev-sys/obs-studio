@@ -327,6 +327,16 @@ static struct dstr aspect_ratio_from_spa_rectangle(struct spa_rectangle rect)
 	return str;
 }
 
+static bool camera_format_list_contains(obs_property_t *prop, const char *name, const char *value)
+{
+	for (size_t i = 0; i < obs_property_list_item_count(prop); i++) {
+		if (strcmp(obs_property_list_item_name(prop, i), name) == 0 &&
+		    strcmp(obs_property_list_item_string(prop, i), value) == 0)
+			return true;
+	}
+	return false;
+}
+
 static void camera_format_list(struct camera_device *dev, obs_property_t *prop)
 {
 	struct param *p;
@@ -445,7 +455,11 @@ static void camera_format_list(struct camera_device *dev, obs_property_t *prop)
 		}
 
 		dstr_catf(&str, " - %s", format_name);
-		obs_property_list_add_string(prop, str.array, obs_data_get_json(data));
+		const char *json = obs_data_get_json(data);
+		/* libcamera lists its preferred size first and again among all sizes.
+		 * Keep that first occurrence, but preserve different FPS descriptions. */
+		if (!camera_format_list_contains(prop, str.array, json))
+			obs_property_list_add_string(prop, str.array, json);
 	}
 
 	g_clear_pointer(&data, obs_data_release);
