@@ -117,6 +117,55 @@ class BuildScriptTest(unittest.TestCase):
         self.assertIn("--base manylinux --steps", WORKFLOW.read_text())
         self.assertEqual(called, [s for s in build.STEP_NAMES if s not in build.MANYLINUX_SKIPPED])
 
+    def test_helper_compiler_failure_reaches_workflow_step(self):
+        script = old_run_block(WORKFLOW.read_text(), "Build the test helper")
+        helpers = ["obs-appimage-testkit", "obs-appimage-curl-test", "obs-appimage-gpu-test"]
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            # Execute the actual workflow step; replace only its container,
+            # compiler, package-manager and media-generation boundaries.
+            stubs = {
+                "build-aux/appimage/manylinux/run.sh": '#!/bin/sh\nexec "$@"\n',
+                "bin/gcc": textwrap.dedent('''\
+                    #!/bin/sh
+                    while [ "$#" -gt 0 ]; do
+                      if [ "$1" = -o ]; then
+                        shift
+                        printf '%s\\n' "$1" >> "$COMPILER_LOG"
+                        if [ "$1" = "$FAIL_HELPER" ]; then
+                          printf 'injected compiler failure: %s\\n' "$1" >&2
+                          exit 42
+                        fi
+                        : > "$1"
+                        exit 0
+                      fi
+                      shift
+                    done
+                    exit 2
+                    '''),
+                **{f"bin/{tool}": "#!/bin/sh\nexit 0\n" for tool in ("pkg-config", "sudo", "ffmpeg")},
+            }
+            for name, contents in stubs.items():
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(contents)
+                path.chmod(0o755)
+            log = root / "compiler.log"
+            for failed_helper, status in [("", 0), ("obs-appimage-curl-test", 42)]:
+                with self.subTest(failed_helper=failed_helper):
+                    log.unlink(missing_ok=True)
+                    for helper in helpers:
+                        (root / helper).unlink(missing_ok=True)
+                    env = {**os.environ, "PATH": f"{root / 'bin'}:{os.environ['PATH']}",
+                           "COMPILER_LOG": str(log), "FAIL_HELPER": failed_helper}
+                    result = subprocess.run(["bash", "-e", "-c", script], cwd=root, env=env,
+                                            capture_output=True, text=True, timeout=10)
+                    self.assertEqual(result.returncode, status, result.stdout + result.stderr)
+                    attempted = helpers[:2] if failed_helper else helpers
+                    self.assertEqual(log.read_text().splitlines(), attempted)
+                    produced = helpers[:1] if failed_helper else helpers
+                    self.assertEqual([h for h in helpers if (root / h).exists()], produced)
+
     def test_workflow_passes_every_input(self):
         text = WORKFLOW.read_text()
         for flag, var in [("--rust-libobs", "RUST_LIBOBS"), ("--qsv", "QSV"),
