@@ -497,6 +497,16 @@ fi
 
 # ============================================================================
 if [ "$SCENARIO" != probes ]; then
+    # A distro OBS installation can leave incompatible plugins at these
+    # compiled system paths. The AppImage must not even try to open them
+    # (obs-rust/obs-studio#1084). Each scenario runs in its own stock container.
+    HOST_PLUGIN_FIXTURE=obs-appimage-host-path-fixture
+    for plugin_dir in /usr/lib/obs-plugins /usr/lib/obs-modules/plugins \
+        /usr/lib/obs-studio-rust/obs-modules/plugins; do
+        mkdir -p "$plugin_dir"
+        printf 'incompatible host plugin fixture\n' >"$plugin_dir/$HOST_PLUGIN_FIXTURE.so"
+    done
+
     # A display number nobody uses, so a shared machine's X server is never touched.
     DISPLAY_NUM="${TEST_DISPLAY:-99}"
     while [ -e "/tmp/.X11-unix/X$DISPLAY_NUM" ] || [ -e "/tmp/.X$DISPLAY_NUM-lock" ]; do
@@ -529,6 +539,14 @@ require_mapped_from_appimage() {
             fail "$lib was not loaded from inside the AppImage"
         fi
     done
+}
+
+require_appimage_plugin_paths() {
+    local pid="$1" log="$2"
+    grep -zFxq 'OBS_APPIMAGE=1' "/proc/$pid/environ" || fail "AppRun did not identify its OBS process as an AppImage"
+    if grep -Fq "$HOST_PLUGIN_FIXTURE" "$log"; then
+        fail "the AppImage tried to load a plugin from the host OBS installation"
+    fi
 }
 
 # ============================================================================
@@ -592,6 +610,7 @@ if [ "$SCENARIO" = first-start ]; then
     xwininfo -tree -root 2>&1 | head -40 || true
     OBS_PID="$(obs_pid_of "$APP_PID")"
     if [ -n "$OBS_PID" ]; then
+        require_appimage_plugin_paths "$OBS_PID" "$OUT/obs-stdout.log"
         # The driver search paths the running OBS's EGL, GBM, VA-API and Vulkan loaders see.
         "$HERE_DIR/test-apprun-driver-env.sh" --check "$OBS_PID" "$DRIVER_ENV_CASE" ||
             fail "OBS did not get the host driver search paths (see above)"
@@ -940,6 +959,7 @@ for i in $(seq 1 $((RECORD_SECONDS + 5))); do
     alive "$APP_PID" || break
     OBS_PID="$(obs_pid_of "$APP_PID")"
     if [ "$i" -ge 5 ] && [ "$MAPS_CHECKED" -eq 0 ] && [ -n "$OBS_PID" ]; then
+        require_appimage_plugin_paths "$OBS_PID" "$OUT/obs-profile-stdout.log"
         # Once the captures run: their client libraries come from the AppImage.
         require_mapped_from_appimage "$OBS_PID" libpipewire-0.3.so libpulse.so libglib-2.0.so libgio-2.0.so
         MAPS_CHECKED=1
