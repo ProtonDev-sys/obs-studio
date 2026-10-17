@@ -104,6 +104,9 @@ else
 fi
 
 export APPDIR="$HERE"
+# Identify this OBS bundle so its loader leaves the host OBS's system plugins
+# alone. APPDIR by itself could have been inherited from another application.
+export OBS_APPIMAGE=1
 # Deliberately NO LD_LIBRARY_PATH: every bundled ELF carries a relative RPATH
 # (set-runpaths.sh). An exported LD_LIBRARY_PATH would leak into every process
 # OBS spawns, and host programs crash when they pick up the bundled glibc.

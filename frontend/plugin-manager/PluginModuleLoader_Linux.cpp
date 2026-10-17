@@ -108,7 +108,7 @@ State PluginManager::loadPlugins(bool usePortableMode)
 
 	State systemPluginState = State::Failure;
 
-	if constexpr (hasSystemPluginPath) {
+	if (hasSystemPluginPath && getEnvironmentVariable("OBS_APPIMAGE") != "1") {
 		std::string binaryPath{Constants::kPlatformPluginModulePath};
 		std::string dataPath{Constants::kPlatformPluginDataPath};
 
@@ -177,7 +177,7 @@ State PluginManager::loadLegacyPlugins(bool usePortableMode)
 
 	State systemPluginState = State::Failure;
 
-	{
+	if (getEnvironmentVariable("OBS_APPIMAGE") != "1") {
 		std::string binaryPath{Constants::kPlatformInstallPath};
 		std::string dataPath{Constants::kPlatformInstallPath};
 		binaryPath.append(Constants::kPlatformLibraryPath);
@@ -190,6 +190,8 @@ State PluginManager::loadLegacyPlugins(bool usePortableMode)
 				       .name = nullptr};
 
 		systemPluginState = pluginLoadHelper(info, failedModules_);
+	} else {
+		systemPluginState = State::Success;
 	}
 
 	State xdgPluginState = State::Failure;
