@@ -18,6 +18,7 @@ pre-release, a tag push attaches it to that tag's release.
 | `check-glibc-floor.sh` | Fails when any ELF file in the AppDir requires a `GLIBC_` symbol version above the floor (2.28, #926). Reads only the versions a file *requires* (`objdump -p`), so the bundled glibc does not count. Run by `assemble-appdir.sh` (fails the build). |
 | `test-appimage.sh` | The distribution test, run inside a stock container (see below). |
 | `testkit.c` | Test helper built next to the AppImage: runtime probes, a fake ScreenCast/Camera portal, the test tone. The test runs it with the AppImage's own loader and libraries. |
+| `curl-test.c`, `test-apprun-curl.sh` | Local TLS regression using the packaged launcher, libcurl and OBS's private initializer, with trusted-CA, untrusted-CA and hostname checks. |
 | `gpu-test.c` | Physical render-node checks: GBM buffer export and EGL DMA-BUF import with pixel readback, and VAAPI decoding with downloaded frame data. Built as a separate test artifact. |
 | `verify-recording.sh` | Checks the recording the test made (outside the container, which must not have ffmpeg). |
 
@@ -94,6 +95,12 @@ checks that and that the workflow calls every step with every input.
 - **Qt and GIO come only from the bundle** (`usr/bin/qt.conf`, `GIO_MODULE_DIR`).
   Plugins of a different Qt version on the host crash OBS. The build fails if
   the Qt SVG plugins (`qt6-svg-plugins` on Ubuntu 26.04) are missing.
+- **HTTPS uses the host's certificate bundle.** `AppRun` preserves a user's
+  `SSL_CERT_FILE` or selects the first readable distribution CA bundle. It
+  passes that path to OBS through `OBS_CURL_CA_BUNDLE`, which the private curl
+  initializer applies with `CURLOPT_CAINFO`. libcurl itself does not read
+  `SSL_CERT_FILE`; its compiled-in path may belong to a different distribution
+  (#1085). Certificate and hostname verification remain enabled.
 - **The bundled loader lives at a fixed path.** Every executable's ELF
   interpreter is `/tmp/.obs-rust-appimage-<hash>/ld-linux-x86-64.so.2`; the
   kernel cannot expand variables in it. `AppRun` copies the bundled loader there
@@ -133,6 +140,22 @@ with none of OBS's dependencies installed, and fails unless all of these pass:
    both pictures to keep moving and the tone to be present throughout.
 
 The release job publishes only after the tests pass on every distribution.
+
+The bundle and saved-profile scenarios also run `test-apprun-curl.sh`. It copies
+the packaged launcher into a temporary client AppDir linked to the packaged
+libraries, generates a private CA and local TLS server, and runs the same curl
+initializer as OBS. A trusted certificate must succeed, a different CA and a
+hostname mismatch must fail, and launches without the package variable must
+retain libcurl's original behavior. The source AppDir is unchanged.
+
+The `obs-appimage-testkit` workflow artifact contains both
+`obs-appimage-testkit` and `obs-appimage-curl-test`; keep them together when
+running `test-appimage.sh`. The TLS test can also run alone, with `openssl`
+installed on the test host:
+
+```bash
+build-aux/appimage/test-apprun-curl.sh squashfs-root obs-appimage-curl-test results/tls
+```
 
 ### Physical GPU validation
 

@@ -35,6 +35,16 @@ GUI_NAME=obs
 if [ -f "$APPDIR_SOURCE/usr/bin/obs-studio-rust-gui" ]; then GUI_NAME=obs-studio-rust-gui; fi
 install -m755 "$CLIENT" "$FIXTURE/usr/bin/$GUI_NAME"
 
+# A host-installed curl must not make a missing bundled library pass this test.
+LD_TRACE_LOADED_OBJECTS=1 "$FIXTURE/usr/bin/$GUI_NAME" >"$OUT/libraries.log" 2>&1
+CURL_LIBRARY="$(sed -n 's/^[[:space:]]*libcurl\.so\.4 => \(.*\) (0x[0-9a-f]*)$/\1/p' "$OUT/libraries.log")"
+if [ -z "$CURL_LIBRARY" ] ||
+    [ "$(realpath "$CURL_LIBRARY")" != "$(realpath "$APPDIR_SOURCE/usr/lib/libcurl.so.4")" ]; then
+    cat "$OUT/libraries.log"
+    echo 'FAIL: TLS client does not load libcurl from the AppImage' >&2
+    exit 1
+fi
+
 # Fresh certificates avoid expiration dates or the host trust store becoming
 # test inputs. OpenSSL 1.1.1 (the glibc 2.28 builder) supports these options.
 for ca in trusted wrong; do

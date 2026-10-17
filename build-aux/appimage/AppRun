@@ -190,6 +190,9 @@ if [ -z "$SSL_CERT_FILE" ]; then
         [ -r "$f" ] && { export SSL_CERT_FILE="$f"; break; }
     done
 fi
+# libcurl does not read SSL_CERT_FILE itself. OBS's private curl initializer
+# passes this selection to CURLOPT_CAINFO; native launches keep curl's defaults.
+export OBS_CURL_CA_BUNDLE="$SSL_CERT_FILE"
 # Never let the host inject modules built against its own (different) Qt/GLib:
 # usr/bin/qt.conf pins Qt's plugin search to the bundle, and GIO/GSettings
 # modules (dconf, gvfs, ...) are loaded from an empty bundled directory only.

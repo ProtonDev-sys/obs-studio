@@ -98,7 +98,7 @@ struct showroom_ingest *showroom_get_ingest(const char *server, const char *acce
 		}
 	}
 
-	curl_handle = curl_easy_init();
+	curl_handle = curl_obs_easy_init();
 
 	dstr_copy(&uri, server);
 	dstr_cat(&uri, access_key);

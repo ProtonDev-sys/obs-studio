@@ -7,6 +7,7 @@
 
 /* file-updater/file-updater.c */
 #include <util/curl/curl-helper.h>
+#include <util/curl/curl-init-private.h>
 #include <util/threading.h>
 #include <util/platform.h>
 #include <util/darray.h>

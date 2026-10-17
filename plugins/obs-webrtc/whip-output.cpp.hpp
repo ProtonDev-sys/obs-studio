@@ -416,7 +416,7 @@ bool WHIPOutput::Connect()
 
 	char error_buffer[CURL_ERROR_SIZE] = {};
 
-	CURL *c = curl_easy_init();
+	CURL *c = curl_obs_easy_init();
 	curl_easy_setopt(c, CURLOPT_WRITEFUNCTION, curl_writefunction);
 	curl_easy_setopt(c, CURLOPT_WRITEDATA, (void *)&read_buffer);
 	curl_easy_setopt(c, CURLOPT_HEADERFUNCTION, curl_header_function);
@@ -627,7 +627,7 @@ void WHIPOutput::SendDelete()
 
 	char error_buffer[CURL_ERROR_SIZE] = {};
 
-	CURL *c = curl_easy_init();
+	CURL *c = curl_obs_easy_init();
 	curl_easy_setopt(c, CURLOPT_HTTPHEADER, headers);
 	curl_easy_setopt(c, CURLOPT_URL, resource_url.c_str());
 	curl_easy_setopt(c, CURLOPT_CUSTOMREQUEST, "DELETE");

@@ -29,6 +29,7 @@
 
 /* service-specific/nimotv.c */
 #include <util/curl/curl-helper.h>
+#include <util/curl/curl-init-private.h>
 #include <stdlib.h>
 #include <string.h>
 #include "util/base.h"

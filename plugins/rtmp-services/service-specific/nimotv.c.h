@@ -66,7 +66,7 @@ const char *nimotv_get_ingest(const char *key)
 	struct dstr uri;
 	long response_code;
 
-	curl_handle = curl_easy_init();
+	curl_handle = curl_obs_easy_init();
 	chunk.memory = malloc(1); /* will be grown as needed by realloc */
 	chunk.size = 0;           /* no data at this point */
 

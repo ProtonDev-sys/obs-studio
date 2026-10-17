@@ -12,6 +12,7 @@
 #include "whip-service.h"
 
 /* whip-output.cpp */
+#include <util/curl/curl-init-private.h>
 #include "whip-utils.h"
 
 #include <obs.hpp>

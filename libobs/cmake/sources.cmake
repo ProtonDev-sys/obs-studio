@@ -64,6 +64,7 @@ set(
   util/config-file.h
   util/crc32.h
   util/curl/curl-helper.h
+  util/curl/curl-init-private.h
   util/darray.h
   util/deque.h
   util/dstr.h

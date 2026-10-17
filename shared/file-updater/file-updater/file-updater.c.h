@@ -162,7 +162,7 @@ static bool init_update(struct update_info *info)
 {
 	struct dstr user_agent = {0};
 
-	info->curl = curl_easy_init();
+	info->curl = curl_obs_easy_init();
 	if (!info->curl) {
 		warn("Could not initialize Curl");
 		return false;
@@ -494,7 +494,7 @@ static void *single_file_thread(void *data)
 	struct file_download_data download_data;
 	long response_code;
 
-	info->curl = curl_easy_init();
+	info->curl = curl_obs_easy_init();
 	if (!info->curl) {
 		warn("Could not initialize Curl");
 		return NULL;

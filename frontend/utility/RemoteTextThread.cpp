@@ -21,6 +21,7 @@
 
 #include <qt-wrappers.hpp>
 #include <util/curl/curl-helper.h>
+#include <util/curl/curl-init-private.h>
 
 #include <iterator>
 
@@ -58,7 +59,7 @@ void RemoteTextThread::run()
 		contentTypeString += contentType;
 	}
 
-	Curl curl{curl_easy_init(), curl_deleter};
+	Curl curl{curl_obs_easy_init(), curl_deleter};
 	if (curl) {
 		struct curl_slist *header = nullptr;
 		string str;
@@ -142,7 +143,7 @@ bool GetRemoteFile(const char *url, std::string &str, std::string &error, long *
 		contentTypeString += contentType;
 	}
 
-	Curl curl{curl_easy_init(), curl_deleter};
+	Curl curl{curl_obs_easy_init(), curl_deleter};
 	if (curl) {
 		struct curl_slist *header = nullptr;
 
