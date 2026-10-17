@@ -188,7 +188,12 @@ impl Output {
             if file.flush().is_err() {
                 self.failed = true;
             }
-            drop(file);
+            // Keep the final close result, as C does with fclose. Taking the
+            // parts also avoids retrying a failed flush in BufWriter's drop.
+            let (file, _) = file.into_parts();
+            if crate::platform::close_file(file).is_err() {
+                self.failed = true;
+            }
         }
         if let Some((final_path, temp_path)) = self.commit.take() {
             // As C (#71): replace only after a clean write, and never unlink
