@@ -6,7 +6,7 @@
 //! build defines `PTW32_STATIC_LIB` and the Rust copy matches libobs, which
 //! does not. A null `os_glob` out-pointer is Rust-only (C writes through it).
 //!
-//! `chdir` and the process-global version cache share one lock.
+//! The process-global version cache has one lock; `chdir` runs in a child.
 
 // The C oracle for platform-windows.c is MSVC-only (obs-c-oracle build.rs).
 #![cfg(all(windows, target_env = "msvc"))]
@@ -465,6 +465,13 @@ fn regex_uuid(bytes: &[u8]) -> bool {
 
 #[test]
 fn chdir_matches_the_c_file() {
+    common::in_child(
+        "platform_windows_parity::chdir_matches_the_c_file",
+        chdir_roundtrip,
+    );
+}
+
+fn chdir_roundtrip() {
     let _guard = PARITY.lock().unwrap_or_else(|e| e.into_inner());
     let mut saved = [0u8; 512];
     // SAFETY: `saved` is 512 bytes.

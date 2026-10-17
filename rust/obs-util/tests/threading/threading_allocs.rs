@@ -61,6 +61,9 @@ fn check_handle_allocations<T>(after_base: impl FnOnce() -> T) {
 /// The rendezvous makes the regression deterministic without sleeps or retries.
 #[test]
 fn handle_counts_are_isolated_from_sibling_allocations() {
+    // Keep a parent allocation live even when the measurements re-exec. If
+    // isolation regresses, the callback adds another allocation after `base`.
+    let _sibling = SiblingAllocation::new();
     check_handle_allocations(SiblingAllocation::new);
 }
 

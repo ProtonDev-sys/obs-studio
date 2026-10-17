@@ -294,6 +294,15 @@ fn abs_path_and_glob_match() {
 
 #[test]
 fn getcwd_matches_and_chdir_roundtrips() {
+    // A module-local lock cannot protect pipe_parity's concurrently spawned
+    // children from inheriting this test's temporary working directory.
+    common::in_child(
+        "platform_nix_parity::getcwd_matches_and_chdir_roundtrips",
+        getcwd_and_chdir_roundtrip,
+    );
+}
+
+fn getcwd_and_chdir_roundtrip() {
     let _cwd = cwd_lock();
     let mut rs_buf = [0u8; 4096];
     let mut c_buf = [0u8; 4096];
