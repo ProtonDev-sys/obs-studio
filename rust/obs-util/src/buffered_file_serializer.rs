@@ -184,6 +184,10 @@ impl Output {
         } else {
             chunk_size
         };
+        // A chunk and its header must fit an empty queue so the first write
+        // can wake the I/O thread. Subtract before clamping to avoid overflow.
+        let capacity = INITIAL_CAPACITY.max(buffer_size);
+        let chunk_size = chunk_size.min(capacity - HEADER_LEN);
         let inner = Arc::new(Inner {
             output_error: AtomicBool::new(false),
             shutdown_requested: AtomicBool::new(false),

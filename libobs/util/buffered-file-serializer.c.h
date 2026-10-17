@@ -342,6 +342,12 @@ bool buffered_file_serializer_init(struct serializer *s, const char *path, size_
 	// on how fast data is going in and out.
 	deque_reserve(&out->io.data, 1048576);
 
+	// A chunk and its header must fit an empty queue, otherwise the first
+	// write waits for space before the I/O thread has any data to drain.
+	// Subtract the header before clamping to avoid overflowing the sum.
+	size_t capacity = max(out->io.data.capacity, out->io.buffer_size);
+	out->io.chunk_size = min(out->io.chunk_size, capacity - sizeof(struct io_header));
+
 	pthread_mutex_init(&out->io.data_mutex, NULL);
 
 	os_event_init(&out->io.buffer_space_available_event, OS_EVENT_TYPE_AUTO);
