@@ -27,6 +27,7 @@ const REPLACEMENT: &[u8] = b"replacement file";
 struct CloseState {
     error: c_int,
     attempts: usize,
+    matched_fd: Option<c_int>,
 }
 
 thread_local! {
@@ -40,9 +41,20 @@ pub extern "C" fn close(fd: c_int) -> c_int {
     let error = CLOSE_STATE
         .try_with(|slot| {
             let mut state = slot.get()?;
-            let path = std::fs::read_link(format!("/proc/self/fd/{fd}")).ok()?;
-            if !path.to_string_lossy().contains(MARKER) || path.extension()?.as_bytes() != b"tmp" {
-                return None;
+            match state.matched_fd {
+                Some(matched_fd) if fd != matched_fd => return None,
+                Some(_) => (),
+                None => {
+                    let path = std::fs::read_link(format!("/proc/self/fd/{fd}")).ok()?;
+                    if !path.to_string_lossy().contains(MARKER)
+                        || path.extension()?.as_bytes() != b"tmp"
+                    {
+                        return None;
+                    }
+                    // Keep matching retries after the real close removes the
+                    // descriptor's entry from /proc/self/fd.
+                    state.matched_fd = Some(fd);
+                }
             }
             state.attempts += 1;
             slot.set(Some(state));
@@ -69,7 +81,11 @@ impl Injection {
     fn new(error: c_int) -> Self {
         CLOSE_STATE.with(|slot| {
             assert!(slot.get().is_none());
-            slot.set(Some(CloseState { error, attempts: 0 }));
+            slot.set(Some(CloseState {
+                error,
+                attempts: 0,
+                matched_fd: None,
+            }));
         });
         Self
     }
