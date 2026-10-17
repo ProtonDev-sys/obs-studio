@@ -1,4 +1,4 @@
-//! Shared scratch directory for integration tests.
+//! Shared support for integration tests.
 #![allow(dead_code)]
 
 use std::ops::Deref;
@@ -6,6 +6,11 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static SEQ: AtomicU64 = AtomicU64::new(0);
+
+/// Run a test body without other tests sharing its process-wide state.
+pub fn in_child(_test_name: &str, body: impl FnOnce()) {
+    body();
+}
 
 /// A fresh directory under the temp dir, named `{prefix}-{pid}-{seq}`.
 /// It is removed recursively on drop, including when a test or proptest

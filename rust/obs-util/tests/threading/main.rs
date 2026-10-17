@@ -1,5 +1,8 @@
 //! obs-util integration tests: threading (one module per former tests/*.rs file, #968).
 
+#[path = "../common/mod.rs"]
+mod common;
+
 mod task;
 mod task_parity;
 mod task_stress;
