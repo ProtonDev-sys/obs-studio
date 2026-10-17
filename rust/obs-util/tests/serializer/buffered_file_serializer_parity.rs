@@ -337,6 +337,38 @@ fn one_chunk_matches_oracle() {
     assert_match(64, 8, &[Op::Write(b"01234567".to_vec())]);
 }
 
+/// Queue capacity must include the chunk header. Compare the real C and Rust
+/// writers, including a seek after a write that crosses several chunks.
+#[test]
+fn queue_capacity_matches_oracle() {
+    use super::buffered_file_serializer_capacity::{MIB, isolated};
+
+    isolated(
+        "buffered_file_serializer_parity::queue_capacity_matches_oracle",
+        || {
+            for (buffer, chunk, length) in [
+                (64, 8, 1000),
+                (0, 0, 2 * MIB + 37),
+                (MIB, MIB, 3 * MIB + 37),
+                (MIB, 0, MIB + 37),
+                (MIB, 4 * MIB, 4 * MIB + 37),
+            ] {
+                assert_match(
+                    buffer,
+                    chunk,
+                    &[
+                        Op::Write(pattern(length, 7)),
+                        Op::Pos,
+                        Op::Seek((length / 2) as i64, 0),
+                        Op::Write(b"new".to_vec()),
+                        Op::Pos,
+                    ],
+                );
+            }
+        },
+    );
+}
+
 #[test]
 fn free_null_data_returns() {
     let mut s = zero_rust();
