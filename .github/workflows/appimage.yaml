@@ -159,7 +159,7 @@ jobs:
         # ScreenCast/Camera portal and the test tone. Built in the glibc 2.28
         # image so they run on every host the AppImage does.
         run: |
-          build-aux/appimage/manylinux/run.sh sh -c '
+          build-aux/appimage/manylinux/run.sh sh -ec '
             gcc -O2 -Wall -Wextra -Werror -fPIE -pie -o obs-appimage-testkit build-aux/appimage/testkit.c \
               $(pkg-config --cflags --libs gio-unix-2.0 libpipewire-0.3 libpulse) -lm \
               -Wl,--disable-new-dtags -Wl,-rpath,"\$ORIGIN/../lib"
