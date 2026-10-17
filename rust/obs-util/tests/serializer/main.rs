@@ -6,4 +6,5 @@ mod array_serializer_parity;
 mod buffered_file_serializer;
 mod buffered_file_serializer_parity;
 mod file_serializer;
+mod file_serializer_close;
 mod file_serializer_parity;
