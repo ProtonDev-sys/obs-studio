@@ -40,7 +40,7 @@ concurrency:
 jobs:
   matrix:
     name: Select passes 🎯
-    runs-on: ubuntu-26.04
+    runs-on: ${{ contains(fromJSON('["push","schedule","workflow_dispatch","release"]'), github.event_name) && vars.CI_SERVER_LINUX == 'true' && fromJSON('["self-hosted","Linux","X64","desktop-3flaofg","ubuntu-26.04"]') || 'ubuntu-26.04' }}
     outputs:
       tools: ${{ steps.pick.outputs.tools }}
     steps:
@@ -57,7 +57,7 @@ jobs:
   sanitize:
     name: ${{ matrix.tool }} 🧪
     needs: matrix
-    runs-on: ubuntu-26.04
+    runs-on: ${{ contains(fromJSON('["push","schedule","workflow_dispatch","release"]'), github.event_name) && vars.CI_SERVER_LINUX == 'true' && fromJSON('["self-hosted","Linux","X64","desktop-3flaofg","ubuntu-26.04"]') || 'ubuntu-26.04' }}
     timeout-minutes: 150
     strategy:
       fail-fast: false

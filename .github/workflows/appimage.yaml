@@ -46,7 +46,7 @@ concurrency:
 jobs:
   build:
     name: Build AppImage 🧱
-    runs-on: ubuntu-26.04
+    runs-on: ${{ contains(fromJSON('["push","schedule","workflow_dispatch","release"]'), github.event_name) && vars.CI_SERVER_LINUX == 'true' && fromJSON('["self-hosted","Linux","X64","desktop-3flaofg","ubuntu-26.04"]') || 'ubuntu-26.04' }}
     outputs:
       rust: ${{ steps.configure.outputs.rust }}
     env:
@@ -238,7 +238,7 @@ jobs:
   test:
     name: Test on ${{ matrix.image }} 🧪
     needs: build
-    runs-on: ubuntu-26.04
+    runs-on: ${{ contains(fromJSON('["push","schedule","workflow_dispatch","release"]'), github.event_name) && vars.CI_SERVER_LINUX == 'true' && fromJSON('["self-hosted","Linux","X64","desktop-3flaofg","ubuntu-26.04"]') || 'ubuntu-26.04' }}
     strategy:
       fail-fast: false
       matrix:
@@ -331,7 +331,7 @@ jobs:
     # (publish_continuous) the rolling "continuous" pre-release (#436). (The
     # daily beta itself is published by release-rust.yaml.)
     if: github.event_name == 'push' || inputs.publish_continuous
-    runs-on: ubuntu-26.04
+    runs-on: ${{ contains(fromJSON('["push","schedule","workflow_dispatch","release"]'), github.event_name) && vars.CI_SERVER_LINUX == 'true' && fromJSON('["self-hosted","Linux","X64","desktop-3flaofg","ubuntu-26.04"]') || 'ubuntu-26.04' }}
     permissions:
       contents: write
     steps:

@@ -15,7 +15,7 @@ on:
 jobs:
   check-event:
     name: Event Data 🔎
-    runs-on: ubuntu-26.04
+    runs-on: ${{ contains(fromJSON('["push","schedule","workflow_dispatch","release"]'), github.event_name) && vars.CI_SERVER_LINUX == 'true' && fromJSON('["self-hosted","Linux","X64","desktop-3flaofg","ubuntu-26.04"]') || 'ubuntu-26.04' }}
     defaults:
       run:
         shell: bash
@@ -255,7 +255,7 @@ jobs:
         # OFF always runs (the Linux app build, #436); ON when core code
         # (libobs, rust/) changed, and in the release gate.
         rust: ${{ fromJSON(needs.check-event.outputs.core) && fromJSON('["OFF", "ON"]') || fromJSON('["OFF"]') }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ contains(fromJSON('["push","schedule","workflow_dispatch","release"]'), github.event_name) && (vars.CI_SERVER_LINUX == 'true' && !contains(matrix.os, 'arm') && startsWith(matrix.os, 'ubuntu-26.') && fromJSON('["self-hosted","Linux","X64","desktop-3flaofg","ubuntu-26.04"]') || vars.CI_SERVER_LINUX == 'true' && !contains(matrix.os, 'arm') && (startsWith(matrix.os, 'ubuntu-') || contains(matrix.os, 'ubuntu-')) && fromJSON('["self-hosted","Linux","X64","desktop-3flaofg","ubuntu-24.04"]') || vars.CI_SERVER_WINDOWS == 'true' && contains(matrix.os, 'windows-') && !contains(matrix.os, 'arm') && !contains(matrix.os, 'vs2026') && fromJSON('["self-hosted","Windows","X64","desktop-3flaofg"]')) || matrix.os }}
     needs: check-event
     defaults:
       run:
@@ -351,7 +351,7 @@ jobs:
 
   flatpak-build:
     name: Flatpak 📦
-    runs-on: ubuntu-26.04
+    runs-on: ${{ contains(fromJSON('["push","schedule","workflow_dispatch","release"]'), github.event_name) && vars.CI_SERVER_LINUX == 'true' && fromJSON('["self-hosted","Linux","X64","desktop-3flaofg","ubuntu-26.04"]') || 'ubuntu-26.04' }}
     needs: check-event
     if: fromJSON(needs.check-event.outputs.full)
     defaults:
@@ -645,7 +645,7 @@ jobs:
   # ran. Pushes never skip.
   ci-mode:
     name: CI Mode 🛂
-    runs-on: ubuntu-26.04
+    runs-on: ${{ contains(fromJSON('["push","schedule","workflow_dispatch","release"]'), github.event_name) && vars.CI_SERVER_LINUX == 'true' && fromJSON('["self-hosted","Linux","X64","desktop-3flaofg","ubuntu-26.04"]') || 'ubuntu-26.04' }}
     timeout-minutes: 5
     outputs:
       trusted: ${{ steps.gate.outputs.trusted }}
@@ -670,7 +670,7 @@ jobs:
 
   rust-tests-linux:
     name: Rust Tests 🦀 (ubuntu-26.04)
-    runs-on: ubuntu-26.04
+    runs-on: ${{ contains(fromJSON('["push","schedule","workflow_dispatch","release"]'), github.event_name) && vars.CI_SERVER_LINUX == 'true' && fromJSON('["self-hosted","Linux","X64","desktop-3flaofg","ubuntu-26.04"]') || 'ubuntu-26.04' }}
     needs: [check-event, ci-mode]
     if: needs.ci-mode.outputs.skip_rust-tests-linux != 'true'
     defaults:
@@ -713,7 +713,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(needs.check-event.outputs.platform_os) }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ contains(fromJSON('["push","schedule","workflow_dispatch","release"]'), github.event_name) && (vars.CI_SERVER_LINUX == 'true' && !contains(matrix.os, 'arm') && startsWith(matrix.os, 'ubuntu-26.') && fromJSON('["self-hosted","Linux","X64","desktop-3flaofg","ubuntu-26.04"]') || vars.CI_SERVER_LINUX == 'true' && !contains(matrix.os, 'arm') && (startsWith(matrix.os, 'ubuntu-') || contains(matrix.os, 'ubuntu-')) && fromJSON('["self-hosted","Linux","X64","desktop-3flaofg","ubuntu-24.04"]') || vars.CI_SERVER_WINDOWS == 'true' && contains(matrix.os, 'windows-') && !contains(matrix.os, 'arm') && !contains(matrix.os, 'vs2026') && fromJSON('["self-hosted","Windows","X64","desktop-3flaofg"]')) || matrix.os }}
     needs: check-event
     defaults:
       run:
@@ -743,7 +743,7 @@ jobs:
 
   rust-linux-tier2:
     name: Rust Tier 2 Linux 🐧
-    runs-on: ubuntu-26.04
+    runs-on: ${{ contains(fromJSON('["push","schedule","workflow_dispatch","release"]'), github.event_name) && vars.CI_SERVER_LINUX == 'true' && fromJSON('["self-hosted","Linux","X64","desktop-3flaofg","ubuntu-26.04"]') || 'ubuntu-26.04' }}
     needs: [check-event, ci-mode]
     if: needs.ci-mode.outputs.skip_rust-linux-tier2 != 'true'
     defaults:
@@ -784,7 +784,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(needs.check-event.outputs.platform_os) }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ contains(fromJSON('["push","schedule","workflow_dispatch","release"]'), github.event_name) && (vars.CI_SERVER_LINUX == 'true' && !contains(matrix.os, 'arm') && startsWith(matrix.os, 'ubuntu-26.') && fromJSON('["self-hosted","Linux","X64","desktop-3flaofg","ubuntu-26.04"]') || vars.CI_SERVER_LINUX == 'true' && !contains(matrix.os, 'arm') && (startsWith(matrix.os, 'ubuntu-') || contains(matrix.os, 'ubuntu-')) && fromJSON('["self-hosted","Linux","X64","desktop-3flaofg","ubuntu-24.04"]') || vars.CI_SERVER_WINDOWS == 'true' && contains(matrix.os, 'windows-') && !contains(matrix.os, 'arm') && !contains(matrix.os, 'vs2026') && fromJSON('["self-hosted","Windows","X64","desktop-3flaofg"]')) || matrix.os }}
     needs: check-event
     # Only the platforms the change touches (#436); Linux Tier 2 always runs
     # (rust-linux-tier2).

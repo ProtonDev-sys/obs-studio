@@ -24,7 +24,7 @@ concurrency:
 jobs:
   check:
     name: Check version 🏷️
-    runs-on: ubuntu-26.04
+    runs-on: ${{ contains(fromJSON('["push","schedule","workflow_dispatch","release"]'), github.event_name) && vars.CI_SERVER_LINUX == 'true' && fromJSON('["self-hosted","Linux","X64","desktop-3flaofg","ubuntu-26.04"]') || 'ubuntu-26.04' }}
     outputs:
       tag: ${{ steps.check.outputs.tag }}
       sha: ${{ steps.check.outputs.sha }}
@@ -73,7 +73,7 @@ jobs:
           - os: windows
             runner: windows-2025-vs2026
             target: x64
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ contains(fromJSON('["push","schedule","workflow_dispatch","release"]'), github.event_name) && (vars.CI_SERVER_LINUX == 'true' && !contains(matrix.runner, 'arm') && startsWith(matrix.runner, 'ubuntu-26.') && fromJSON('["self-hosted","Linux","X64","desktop-3flaofg","ubuntu-26.04"]') || vars.CI_SERVER_LINUX == 'true' && !contains(matrix.runner, 'arm') && (startsWith(matrix.runner, 'ubuntu-') || contains(matrix.runner, 'ubuntu-')) && fromJSON('["self-hosted","Linux","X64","desktop-3flaofg","ubuntu-24.04"]') || vars.CI_SERVER_WINDOWS == 'true' && contains(matrix.runner, 'windows-') && !contains(matrix.runner, 'arm') && !contains(matrix.runner, 'vs2026') && fromJSON('["self-hosted","Windows","X64","desktop-3flaofg"]')) || matrix.runner }}
     steps:
       # fetch-depth 0: versionconfig.cmake derives the base OBS version from tags.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -198,7 +198,7 @@ jobs:
     needs: [check, gate, build, appimage]
     # Ship whatever platforms built, but only once the full gate is green.
     if: always() && needs.check.result == 'success' && needs.check.outputs.skip != 'true' && needs.gate.result == 'success'
-    runs-on: ubuntu-26.04
+    runs-on: ${{ contains(fromJSON('["push","schedule","workflow_dispatch","release"]'), github.event_name) && vars.CI_SERVER_LINUX == 'true' && fromJSON('["self-hosted","Linux","X64","desktop-3flaofg","ubuntu-26.04"]') || 'ubuntu-26.04' }}
     permissions:
       contents: write
     steps:
