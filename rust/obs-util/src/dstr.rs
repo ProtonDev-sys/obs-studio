@@ -260,12 +260,13 @@ pub fn strlist_split(s: &[u8], split_ch: u8, include_empty: bool) -> Vec<&[u8]> 
 }
 
 /// Model of `struct dstr`: contents without the NUL terminator plus the C
-/// `capacity`. `capacity == 0` is the NULL-array state. Operations keep
-/// `capacity > len` whenever the array is allocated.
+/// `capacity`. Allocation is tracked separately: `dstr_from_mbs` can leave
+/// a non-NULL array with capacity zero. Otherwise allocated capacity exceeds len.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Dstr {
     bytes: Vec<u8>,
     capacity: usize,
+    allocated: bool,
 }
 
 /// The value that replaces the placeholder starting at `format[at]`, or `None`
@@ -364,9 +365,18 @@ impl Dstr {
         Self::default()
     }
 
-    /// Builds a dstr from raw state (used by the FFI shims).
+    /// Builds an allocated dstr from raw state (used by the FFI shims).
+    /// A NULL array is represented by `new()`, even when capacity is zero.
     pub fn from_parts(bytes: Vec<u8>, capacity: usize) -> Self {
-        Self { bytes, capacity }
+        Self {
+            bytes,
+            capacity,
+            allocated: true,
+        }
+    }
+
+    pub(crate) fn is_allocated(&self) -> bool {
+        self.allocated
     }
 
     pub fn into_parts(self) -> (Vec<u8>, usize) {
@@ -395,6 +405,7 @@ impl Dstr {
     pub fn free(&mut self) {
         self.bytes = Vec::new();
         self.capacity = 0;
+        self.allocated = false;
     }
 
     /// `dstr_ensure_capacity`.
@@ -403,6 +414,7 @@ impl Dstr {
             return;
         }
         self.capacity = grow_capacity(self.capacity, new_size);
+        self.allocated = true;
     }
 
     /// `dstr_reserve`: sets the capacity exactly (it may shrink).
@@ -411,6 +423,7 @@ impl Dstr {
             return;
         }
         self.capacity = capacity;
+        self.allocated = true;
     }
 
     /// `dstr_resize`: new bytes are zero here (uninitialised in C).
@@ -463,6 +476,7 @@ impl Dstr {
         }
         self.bytes = s.to_vec();
         self.capacity = s.len() + 1;
+        self.allocated = true;
     }
 
     /// `dstr_ncopy_dstr`: `src` is the contents of the source dstr and `len`
@@ -475,6 +489,7 @@ impl Dstr {
         let newlen = len.min(src.len());
         self.bytes = src[..newlen].to_vec();
         self.capacity = newlen + 1;
+        self.allocated = true;
     }
 
     /// `dstr_cat_dstr`: `s` is the exact contents of the source dstr.
@@ -645,12 +660,13 @@ impl Dstr {
         // a shrinking `dstr_replace` does (`Some([])`, not `None` in
         // `nullable_diagnostic`).
         self.capacity = plan.capacity;
+        self.allocated = true;
         self.bytes = out;
     }
 
     /// `dstr_depad`: contents are read as a C string; all padding frees.
     pub fn depad(&mut self) {
-        if self.capacity == 0 {
+        if !self.allocated {
             return;
         }
         let n = self

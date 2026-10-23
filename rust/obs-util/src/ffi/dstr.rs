@@ -68,10 +68,11 @@ unsafe fn read(d: *const dstr) -> Dstr {
 /// `d` must point to a valid `dstr` whose `array` is null or came from
 /// `bmalloc`/`brealloc`.
 unsafe fn write(d: *mut dstr, new: Dstr) {
+    let allocated = new.is_allocated();
     let (bytes, cap) = new.into_parts();
     // SAFETY: the caller guarantees `d` is valid.
     let d = unsafe { &mut *d };
-    if cap == 0 {
+    if !allocated {
         // SAFETY: `array` is null or from `bmalloc`.
         unsafe { bfree(d.array as *mut c_void) };
         d.array = ptr::null_mut();
@@ -79,15 +80,17 @@ unsafe fn write(d: *mut dstr, new: Dstr) {
         d.capacity = 0;
         return;
     }
-    assert!(cap > bytes.len(), "dstr capacity must exceed its length");
-    let reuse = !d.array.is_null() && d.capacity == cap;
+    assert!(cap == 0 || cap > bytes.len(), "invalid dstr capacity");
+    let allocation_size = cap.max(bytes.len() + 1);
+    let reuse = !d.array.is_null() && d.capacity == cap && (cap != 0 || bytes.len() <= d.len);
     let buf = if reuse {
         d.array
     } else {
-        // SAFETY: plain allocation; `cap > 0`.
-        unsafe { bmalloc(cap) as *mut c_char }
+        // SAFETY: allocation_size includes all bytes and the terminator.
+        unsafe { bmalloc(allocation_size) as *mut c_char }
     };
-    // SAFETY: `buf` holds `cap > bytes.len()` bytes.
+    // SAFETY: a reused buffer fits the non-growing model result; a new
+    // buffer holds allocation_size bytes, including the terminator.
     unsafe {
         ptr::copy_nonoverlapping(bytes.as_ptr(), buf as *mut u8, bytes.len());
         *buf.add(bytes.len()) = 0;

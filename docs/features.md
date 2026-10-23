@@ -46,7 +46,10 @@ not get a line.
   equivalents in the normal application; unported components remain available.
   *All*, 2026-10-21. Issue
   [#1587](https://github.com/obs-rust/obs-studio/issues/1587), PR
-  [#1588](https://github.com/obs-rust/obs-studio/pull/1588).
+  [#1588](https://github.com/obs-rust/obs-studio/pull/1588). Plugin string
+  edits preserve converted strings even when their recorded capacity is zero.
+  Issue [#1941](https://github.com/obs-rust/obs-studio/issues/1941), PR
+  [#1945](https://github.com/obs-rust/obs-studio/pull/1945).
 
 - Rust libobs process pipes fill reads across kernel pipe chunks, matching the C API on Linux and macOS.
 
