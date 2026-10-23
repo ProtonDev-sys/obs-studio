@@ -817,3 +817,40 @@ fn inline_helper_semantics() {
     d.ncopy(b"\0a");
     assert!(d.is_empty());
 }
+
+// dstr_from_mbs leaves a real allocation with a recorded capacity of zero.
+#[test]
+fn converted_dstr_remove_keeps_recorded_capacity() {
+    let mut d = Dstr::from_parts(b"abc".to_vec(), 0);
+    d.remove(1, 1);
+    assert_eq!(d.as_bytes(), b"ac");
+    assert_eq!(d.capacity(), 0);
+    d.remove(0, 2);
+    assert_eq!(d, Dstr::new());
+}
+
+#[test]
+fn converted_dstr_depad_reads_zero_capacity_contents() {
+    for input in [b" \tabc\r\n".as_slice(), b"abc", b" \t\r\n", b""] {
+        let mut d = Dstr::from_parts(input.to_vec(), 0);
+        d.depad();
+        let expected = if input.contains(&b'a') {
+            Dstr::from_parts(b"abc".to_vec(), 0)
+        } else {
+            Dstr::new()
+        };
+        assert_eq!(d, expected, "input: {input:?}");
+    }
+}
+
+#[test]
+fn converted_dstr_no_op_edits_preserve_contents() {
+    for input in [b"abc".as_slice(), b""] {
+        let mut d = Dstr::from_parts(input.to_vec(), 0);
+        let original = d.clone();
+        d.remove(0, 0);
+        d.insert(0, b"");
+        d.insert_dstr(0, b"");
+        assert_eq!(d, original);
+    }
+}

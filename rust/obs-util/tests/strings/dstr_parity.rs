@@ -835,3 +835,136 @@ proptest! {
         prop_assert_eq!((safe.as_bytes(), safe.capacity()), (&c.bytes[..], c.capacity));
     }
 }
+
+// Cross-module regression: dstr_from_mbs allocates but records capacity 0.
+// Use real conversion on both sides; every edit below has defined C inputs.
+fn converted_pair(input: &[u8]) -> Pair {
+    let mut d = Pair::new();
+    let input = nt(input);
+    // SAFETY: input is NUL-terminated and both destinations are initialized.
+    unsafe {
+        obs_util::ffi::dstr_libc::dstr_from_mbs(&mut d.r, input.as_ptr().cast());
+        obs_c_oracle::dstr_libc::oracle_dstr_from_mbs(&mut d.c, input.as_ptr().cast());
+    }
+    d.check().unwrap();
+    assert!(!d.r.array.is_null());
+    assert_eq!(d.r.capacity, 0);
+    d
+}
+
+fn check_converted(d: &Pair, bytes: &[u8], capacity: usize, allocated: bool) {
+    let (rust, c) = d.snaps();
+    let expected = Snap {
+        null: !allocated,
+        bytes: bytes.to_vec(),
+        terminator: (allocated && capacity > bytes.len()).then_some(0),
+        capacity,
+    };
+    assert_eq!(c, expected, "C baseline");
+    assert_eq!(rust, c, "Rust/C parity");
+    if allocated {
+        // SAFETY: these API operations retain a buffer with len + 1 bytes,
+        // including when the public capacity field is zero.
+        unsafe {
+            assert_eq!(*d.c.array.add(d.c.len), 0);
+            assert_eq!(*d.r.array.add(d.r.len), 0);
+        }
+    }
+}
+
+#[test]
+fn converted_dstr_remove_matches_c() {
+    let mut d = converted_pair(b"abc");
+    // SAFETY: the range is within both three-byte strings.
+    unsafe {
+        r::dstr_remove(&mut d.r, 1, 1);
+        c::oracle_dstr_remove(&mut d.c, 1, 1);
+    }
+    check_converted(&d, b"ac", 0, true);
+    // SAFETY: removing exactly len frees both initialized strings.
+    unsafe {
+        r::dstr_remove(&mut d.r, 0, 2);
+        c::oracle_dstr_remove(&mut d.c, 0, 2);
+    }
+    check_converted(&d, b"", 0, false);
+}
+
+#[test]
+fn converted_dstr_depad_matches_c() {
+    for (input, expected) in [
+        (b" \tabc\r\n".as_slice(), b"abc".as_slice()),
+        (b"abc", b"abc"),
+        (b" \t\r\n", b""),
+        (b"", b""),
+    ] {
+        let mut d = converted_pair(input);
+        // SAFETY: conversion produced valid NUL-terminated strings.
+        unsafe {
+            r::dstr_depad(&mut d.r);
+            c::oracle_dstr_depad(&mut d.c);
+        }
+        check_converted(&d, expected, 0, !expected.is_empty());
+    }
+}
+
+#[test]
+fn converted_dstr_no_op_and_growing_edits_match_c() {
+    for input in [b"abc".as_slice(), b""] {
+        let mut d = converted_pair(input);
+        let empty = Pair::new();
+        // SAFETY: index zero is valid, pointers are null or valid strings,
+        // and the distinct empty source dstr is initialized.
+        unsafe {
+            r::dstr_remove(&mut d.r, 0, 0);
+            c::oracle_dstr_remove(&mut d.c, 0, 0);
+        }
+        check_converted(&d, input, 0, true);
+        // SAFETY: as above; a null/empty insertion is a no-op in C.
+        unsafe {
+            r::dstr_insert(&mut d.r, 0, ptr::null());
+            c::oracle_dstr_insert(&mut d.c, 0, ptr::null());
+        }
+        check_converted(&d, input, 0, true);
+        // SAFETY: as above, with a live empty C string.
+        unsafe {
+            r::dstr_insert(&mut d.r, 0, c"".as_ptr());
+            c::oracle_dstr_insert(&mut d.c, 0, c"".as_ptr());
+            r::dstr_insert_dstr(&mut d.r, 0, &empty.r);
+            c::oracle_dstr_insert_dstr(&mut d.c, 0, &empty.c);
+        }
+        check_converted(&d, input, 0, true);
+        // SAFETY: insertion at zero is valid even for the empty allocation.
+        unsafe {
+            r::dstr_insert_ch(&mut d.r, 0, b'X' as c_char);
+            c::oracle_dstr_insert_ch(&mut d.c, 0, b'X' as c_char);
+        }
+        let mut expected = b"X".to_vec();
+        expected.extend_from_slice(input);
+        check_converted(&d, &expected, expected.len() + 1, true);
+    }
+}
+
+proptest! {
+    #[test]
+    fn converted_dstr_edits_match_c(
+        input in vec(prop_oneof![b'a'..=b'z', Just(b' '), Just(b'\t'), Just(b'\r'), Just(b'\n')], 1..32),
+        index in any::<usize>(), count in any::<usize>(),
+    ) {
+        let mut d = converted_pair(&input);
+        let index = index % (input.len() + 1);
+        let count = count % (input.len() - index + 1);
+        // SAFETY: the generated removal range is bounded by the converted
+        // ASCII string's length, with separate Rust/C buffers.
+        unsafe {
+            r::dstr_remove(&mut d.r, index, count);
+            c::oracle_dstr_remove(&mut d.c, index, count);
+        }
+        d.check()?;
+        // SAFETY: both results remain initialized NUL-terminated dstrs.
+        unsafe {
+            r::dstr_depad(&mut d.r);
+            c::oracle_dstr_depad(&mut d.c);
+        }
+        d.check()?;
+    }
+}
