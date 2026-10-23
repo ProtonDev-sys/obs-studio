@@ -44,6 +44,9 @@ not get a line.
 
 - **Hybrid Rust/C application build.** Completed Rust ports replace their C
   equivalents in the normal application; unported components remain available.
+  Property parameter destructors observe the original parameter during replacement
+  (C API compatibility; [#1938](https://github.com/obs-rust/obs-studio/issues/1938),
+  [#1939](https://github.com/obs-rust/obs-studio/pull/1939)).
   *All*, 2026-10-21. Issue
   [#1587](https://github.com/obs-rust/obs-studio/issues/1587), PR
   [#1588](https://github.com/obs-rust/obs-studio/pull/1588).

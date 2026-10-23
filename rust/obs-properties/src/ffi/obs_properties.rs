@@ -190,9 +190,17 @@ pub unsafe extern "C" fn obs_properties_set_param(
     destroy: Option<DestroyFn>,
 ) {
     if let Some(s) = unsafe { set(props) } {
-        let old = props::set_param(&s, param as usize, destroy);
-        drop(s);
-        run_destroys(old.into_iter().collect());
+        let (old, callback) = {
+            let p = s.borrow();
+            (p.param, p.destroy)
+        };
+        if old != 0
+            && let Some(callback) = callback
+        {
+            // SAFETY: the caller registered this callback with the old parameter.
+            unsafe { callback(old as *mut c_void) };
+        }
+        props::set_param(&s, param as usize, destroy);
     }
 }
 
