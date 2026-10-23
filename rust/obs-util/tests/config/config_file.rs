@@ -658,6 +658,56 @@ fn test_open_always_creates_file() {
     expect_file_empty(&path);
 }
 
+/// #1942: C's `w+` fallback requires read access before truncating.
+#[cfg(unix)]
+#[test]
+fn open_always_preserves_write_only_file() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let scratch = Scratch::new();
+    let path = scratch.join("write-only.ini");
+    let original = b"[S]\nk=preserve me\n";
+    write_file(&path, original);
+    let permissions = std::fs::metadata(&path).unwrap().permissions();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o200)).unwrap();
+    let readable = std::fs::File::open(&path).is_ok();
+    let result = Config::open(&path_bytes(&path), OpenType::Always);
+    std::fs::set_permissions(&path, permissions).unwrap();
+    if readable {
+        eprintln!("skipping permission assertions: this user can read mode 0200 files");
+        return;
+    }
+
+    assert_eq!(
+        std::fs::read(&path).unwrap(),
+        original,
+        "config was truncated"
+    );
+    assert_eq!(result.unwrap_err(), CONFIG_FILENOTFOUND);
+}
+
+/// #1942: a successful open followed by a failed read is an empty parse.
+#[cfg(unix)]
+#[test]
+fn read_failure_after_open_succeeds() {
+    let scratch = Scratch::new();
+    assert!(std::fs::File::open(&scratch.0).is_ok());
+    assert!(std::fs::read(&scratch.0).is_err());
+    let path = path_bytes(&scratch.0);
+    for mode in [OpenType::Existing, OpenType::Always] {
+        let config = Config::open(&path, mode).unwrap();
+        assert_eq!(config.num_sections(), 0);
+    }
+    let config = open_str("");
+    config.set_default_string(b"S", b"k", b"preserve me");
+    assert_eq!(config.open_defaults(&path), CONFIG_SUCCESS);
+    assert_eq!(
+        config.get_default_string(b"S", b"k").as_deref(),
+        Some(b"preserve me".as_slice())
+    );
+    assert!(scratch.0.is_dir());
+}
+
 /// `test_open_empty_file`.
 #[test]
 fn test_open_empty_file() {

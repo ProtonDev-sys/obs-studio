@@ -716,6 +716,76 @@ fn open_missing_file_matches() {
     let _ = (pair, c_path, r_path);
 }
 
+/// #1942: unreadable configs must fail without losing bytes, like C's `w+`.
+#[cfg(unix)]
+#[test]
+fn write_only_open_preserves_bytes_matches() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = scratch("write-only");
+    let (c_path, c_bytes) = cfg_path(&dir, "c.ini");
+    let (r_path, r_bytes) = cfg_path(&dir, "r.ini");
+    let original = b"[S]\nk=preserve me\n";
+    for mode in [0, 1] {
+        for path in [&c_path, &r_path] {
+            std::fs::write(path, original).unwrap();
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o200)).unwrap();
+        }
+        let readable = std::fs::File::open(&r_path).is_ok();
+        let (pair, oc, rc) = Pair::open_files(&c_bytes, &r_bytes, mode);
+        for path in [&c_path, &r_path] {
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).unwrap();
+        }
+        if readable {
+            eprintln!("skipping permission assertions: this user can read mode 0200 files");
+            return;
+        }
+
+        assert_eq!(read(&c_path).as_deref(), Some(original.as_slice()));
+        assert_eq!(
+            read(&r_path),
+            read(&c_path),
+            "mode {mode}: C={oc}, Rust={rc}"
+        );
+        assert_eq!(oc, -1, "CONFIG_FILENOTFOUND");
+        assert_eq!(rc, oc);
+        assert!(pair.oracle.is_null());
+        assert!(pair.rust.is_null());
+    }
+}
+
+/// #1942: read failure after a successful directory open must not retry `w+`.
+#[cfg(unix)]
+#[test]
+fn read_failure_after_open_matches() {
+    let dir = scratch("read-failure");
+    let (c_path, c_bytes) = cfg_path(&dir, "c.ini");
+    let (r_path, r_bytes) = cfg_path(&dir, "r.ini");
+    for path in [&c_path, &r_path] {
+        std::fs::create_dir(path).unwrap();
+        assert!(std::fs::File::open(path).is_ok());
+        assert!(std::fs::read(path).is_err());
+    }
+    for mode in [0, 1] {
+        let (pair, oc, rc) = Pair::open_files(&c_bytes, &r_bytes, mode);
+        assert_eq!(oc, 0, "CONFIG_SUCCESS");
+        assert_eq!(rc, oc, "mode {mode}");
+        assert_eq!(pair.num_sections(), (0, 0));
+    }
+
+    let (pair, oc, rc) = Pair::from_strings(b"");
+    assert_eq!((oc, rc), (0, 0));
+    let c_path = cstr(&c_bytes);
+    let r_path = cstr(&r_bytes);
+    // SAFETY: configs and path strings remain live for both calls.
+    unsafe {
+        assert_eq!(oracle_config_open_defaults(pair.oracle, c_path.as_ptr()), 0);
+        assert_eq!(config_open_defaults(pair.rust, r_path.as_ptr()), 0);
+    }
+    assert!(dir.join("c.ini").is_dir());
+    assert!(dir.join("r.ini").is_dir());
+}
+
 /// `config_save_safe` with a null/empty temp_ext: CONFIG_ERROR for both.
 #[test]
 fn save_safe_bad_ext_matches() {
