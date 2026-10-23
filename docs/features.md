@@ -48,6 +48,11 @@ not get a line.
   [#1587](https://github.com/obs-rust/obs-studio/issues/1587), PR
   [#1588](https://github.com/obs-rust/obs-studio/pull/1588).
 
+  Opening an unreadable config preserves its contents; failed reads keep the
+  C API's empty-config result. Issue
+  [#1942](https://github.com/obs-rust/obs-studio/issues/1942), PR
+  [#1944](https://github.com/obs-rust/obs-studio/pull/1944).
+
 - Rust libobs process pipes fill reads across kernel pipe chunks, matching the C API on Linux and macOS.
 
 - Failed libobs startup reports the initializer that failed; Linux X11

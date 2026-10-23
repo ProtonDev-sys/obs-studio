@@ -23,7 +23,7 @@
 mod uthash_model;
 
 use std::ffi::CString;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::sync::{Mutex, MutexGuard};
 
 use uthash_model::{Keyed, UtList};
@@ -496,33 +496,30 @@ fn with_ext(file: &[u8], ext: &[u8]) -> Vec<u8> {
     out
 }
 
-/// `os_fread_utf8` semantics: whole file minus a leading UTF-8 BOM; None
-/// when the file cannot be opened.
-fn read_file(path: &std::path::Path) -> Option<Vec<u8>> {
-    let data = std::fs::read(path).ok()?;
-    Some(match data.strip_prefix(b"\xEF\xBB\xBF") {
-        Some(rest) => rest.to_vec(),
-        None => data,
-    })
-}
-
 /// `config_parse_file` for one table: reads `file` (creating it on
 /// `always_open`), strips the BOM, parses.
 fn parse_file_into(sections: &mut UtList<Section>, file: &[u8], always_open: bool) -> i32 {
     let path = path_from_bytes(file);
-    let data = match read_file(&path) {
-        Some(data) => Some(data),
-        None if always_open => {
-            // "w+": create an empty file, then read back nothing.
-            match std::fs::File::create(&path) {
-                Ok(_) => None,
-                Err(_) => return CONFIG_FILENOTFOUND,
-            }
+    let opened = std::fs::File::open(&path).or_else(|error| {
+        if !always_open {
+            return Err(error);
         }
-        None => return CONFIG_FILENOTFOUND,
+        // C retries failed opens with "w+", requiring read and write access.
+        std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&path)
+    });
+    let Ok(mut file) = opened else {
+        return CONFIG_FILENOTFOUND;
     };
-    if let Some(data) = data {
-        parse_config_data(&data, sections);
+    let mut data = Vec::new();
+    // Like C, a read failure after opening is an empty successful parse.
+    if file.read_to_end(&mut data).is_ok() {
+        let data = data.strip_prefix(b"\xEF\xBB\xBF").unwrap_or(&data);
+        parse_config_data(data, sections);
     }
     CONFIG_SUCCESS
 }
