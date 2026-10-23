@@ -50,12 +50,16 @@ not get a line.
   Property destructors that remove or add groups run each callback once, and a
   removed group stays readable in its own destructor (C API compatibility;
   [#1943](https://github.com/obs-rust/obs-studio/issues/1943)).
+  Settings retain valid JSON members when a plugin produces NaN or infinity,
+  and recover valid backups when local JSON contains invalid UTF-8.
   *All*, 2026-10-21. Issue
   [#1587](https://github.com/obs-rust/obs-studio/issues/1587), PR
   [#1588](https://github.com/obs-rust/obs-studio/pull/1588). Plugin string
   edits preserve converted strings even when their recorded capacity is zero.
   Issue [#1941](https://github.com/obs-rust/obs-studio/issues/1941), PR
-  [#1945](https://github.com/obs-rust/obs-studio/pull/1945).
+  [#1945](https://github.com/obs-rust/obs-studio/pull/1945). Persistence fix:
+  issue [#1940](https://github.com/obs-rust/obs-studio/issues/1940), PR
+  [#1946](https://github.com/obs-rust/obs-studio/pull/1946).
 
   Opening an unreadable config preserves its contents; failed reads keep the
   C API's empty-config result. Issue

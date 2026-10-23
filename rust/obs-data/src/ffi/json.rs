@@ -168,6 +168,11 @@ fn convert(value: *mut c_void) -> J {
 /// (`set_obj(key, None)`, like `obs_data_add_json_null`), and any other JSON
 /// type is ignored.
 pub fn load_data(text: &str) -> Option<Data> {
+    load_data_bytes(text.as_bytes())
+}
+
+/// Lets Jansson validate the original JSON bytes, including their UTF-8.
+pub(crate) fn load_data_bytes(text: &[u8]) -> Option<Data> {
     let Ok(input) = CString::new(text) else {
         let msg = c"invalid string";
         blog_parse(1, msg.as_ptr());
@@ -289,6 +294,10 @@ fn build_object(data: &Data, with_defaults: bool) -> Option<*mut c_void> {
         return None;
     }
     for (name, rendered) in data.rendered_items(with_defaults) {
+        // C omits a real that Jansson cannot represent, keeping other settings.
+        if matches!(&rendered, Rendered::Real(value) if !value.is_finite()) {
+            continue;
+        }
         let Some(child) = build_value(&rendered, with_defaults) else {
             unsafe { obs_data_json_decref(object) };
             return None;

@@ -1722,7 +1722,7 @@ fn read_utf8(path: &Path) -> Option<String> {
     if bytes.is_empty() {
         return None;
     }
-    Some(String::from_utf8_lossy(bytes).into_owned())
+    Some(std::str::from_utf8(bytes).ok()?.to_owned())
 }
 
 fn replace_file(dest: &Path, from: &Path, backup: Option<&Path>) -> bool {

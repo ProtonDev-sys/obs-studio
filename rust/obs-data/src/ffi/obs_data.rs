@@ -208,10 +208,10 @@ fn load_file(path: *const c_char) -> *mut c_void {
     if buf.is_null() {
         return ptr::null_mut();
     }
-    let text = unsafe { CStr::from_ptr(buf) }.to_string_lossy();
-    let data = Data::from_json(&text);
+    // SAFETY: the buffer is a live C string until bfree below.
+    let data = unsafe { obs_data_create_from_json(buf) };
     unsafe { bfree(buf.cast()) };
-    data.map(leak_data).unwrap_or(ptr::null_mut())
+    data
 }
 
 fn write_json(data: *mut c_void, file: *const c_char, pretty: bool) -> Option<CString> {
@@ -512,10 +512,12 @@ pub unsafe extern "C" fn obs_data_create() -> *mut c_void {
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn obs_data_create_from_json(json_string: *const c_char) -> *mut c_void {
-    let Some(text) = c_str(json_string) else {
+    if json_string.is_null() {
         return ptr::null_mut();
-    };
-    Data::from_json(&text)
+    }
+    // SAFETY: the non-null input is a C string that outlives parsing.
+    let text = unsafe { CStr::from_ptr(json_string) }.to_bytes();
+    super::json::load_data_bytes(text)
         .map(leak_data)
         .unwrap_or(ptr::null_mut())
 }
